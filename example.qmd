@@ -1,0 +1,700 @@
+---
+title: "Paper"
+format:
+  pdf:
+    documentclass: apa7
+editor: visual
+keep-tex: true
+bibliography: bibliography.bib
+---
+
+<!-- \usepackage{lipsum} -->
+
+<!-- \usepackage[american]{babel} -->
+
+<!-- \usepackage{csquotes} -->
+
+<!-- \usepackage[style=apa,sortcites=true,sorting=nyt,backend=biber]{biblatex} -->
+
+<!-- \DeclareLanguageMapping{american}{american-apa} -->
+
+<!-- \addbibresource{bibliography.bib} -->
+
+<!-- \title{Network visualization in R using the netplot package} -->
+
+<!-- \shorttitle{Sample Document} -->
+
+<!-- \authorsnames[{1,2},2]{Porter Bischoff, George G. {Vega Yon}} -->
+
+<!-- \authorsaffiliations{Utah Valley University, University of Utah} -->
+
+<!-- \leftheader{Weiss} -->
+
+<!-- \abstract{\lipsum[1]} -->
+
+<!-- \keywords{APA style, demonstration} -->
+
+<!-- \authornote{ -->
+
+<!--    \addORCIDlink{Daniel A. Weiss}{0000-0000-0000-0000} -->
+
+<!--   Correspondence concerning this article should be addressed to Daniel A. Weiss, Department of Educational Psychology, Counseling and -->
+
+<!--   Special Education, A University Somewhere, 123 Main St., Oneonta, NY -->
+
+<!--   13820.  E-mail: daniel.weiss.led@gmail.com} -->
+
+# Introduction
+
+Network visualization tools play a crucial role in enabling researchers and professionals to visually comprehend complex data structures. Analyzing networks holds significant importance across various fields, including business [@jack_approaches_2010], biology [@alm_biological_2003], social sciences [@garton_studying_1997], health sciences [@deri_social_2005], and more. Numerous software programs are available for network analysis, such as 'Gephi' [@bastian_gephi_2009], 'Cytoscape' [@smoot_cytoscape_2011], 'Graphviz' [@ellson_graphviz_2002], 'UCINET' [@johnson_ucinet_2009], 'SocNetV' [@kalamaras2014social], 'Pajek' [@mrvar_c_nodate], and graphing packages in programming languages like 'Python' [@van1995python] and 'R' [@ihaka_r_1996]. Given R's widespread use for statistical and data analysis, it naturally offers several graphing packages tailored to facilitate the examination of network data, including `igraph` [@csadi2006igraph], `sna` [@butts_social_2008], and `ggplot` [@wickham_introduction_nodate].
+
+The current landscape of network visualization tools offers a diverse range of options to effectively analyze and interpret complex data structures. Notably, `igraph` [@csadi2006igraph] stands out as an open-source tool designed to efficiently represent large networks, supporting both interactive and non-interactive usage. This versatile tool allows users to implement new algorithms and provides a practical example using the igraph package in R. Here is an example using `igraph` for plotting a network:
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# load libraries
+library(igraph)
+library(netplot)
+
+set.seed(1)
+
+# read in data
+data("UKfaculty", package = "igraphdata")
+l <- layout_with_fr(UKfaculty)
+
+# create igraph graph
+plot(UKfaculty, layout = l)
+```
+
+`sna` [@butts_social_2008] is another prominent tool known for its general coverage, extensibility to new methods, and seamless integration of statistical, computational, and visualization measures. It is widely used across various types of networks. Here is an example using `sna` for plotting the same network as before:
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# load libraries
+library(igraph)
+library(netplot)
+library(sna)
+library(intergraph)
+
+set.seed(1)
+
+# read in data
+data("UKfaculty", package = "igraphdata")
+l <- layout_with_fr(UKfaculty)
+
+# create sna graph
+gplot(asNetwork(UKfaculty), coord = l)
+```
+
+For strictly aesthetic visualizations, researchers can turn to `ggplot` [@tyner_network_2017], which was initially developed as an alternative to the base graphing capabilities in R [@wickham_introduction_nodate]. Here is an example using `ggplot` plotting the same network as before:
+
+```{r, echo=FALSE,warning=FALSE,message=FALSE}
+# Load libraries
+library(igraph)
+library(ggraph)
+library(ggplot2)
+
+set.seed(1)
+
+# Read in data
+data("UKfaculty", package = "igraphdata")
+
+# Convert to data frame
+UKfaculty_df <- as_data_frame(UKfaculty)
+
+# Create ggplot graph
+gg <- ggraph(UKfaculty_df, layout = "fr") + 
+  geom_edge_link() +
+  geom_node_point() +
+  geom_node_text(aes(label = name), repel = TRUE)
+
+# Plot the graph
+print(gg)
+
+```
+
+`netplot`[@netplot] was created as an alternative option for plotting network data to those mentioned above. It is built on the grid plotting system (the same as `ggplot`), with the "under-the-hood" parameters being coded with C++. Like `ggplot`, its focus is mainly on aesthetics, providing beautiful visualizations right out of the box. using the same network as the other packages above, here is a plot using `netplot`:
+
+```{r, echo=FALSE,warning=FALSE,message=FALSE}
+# load libraries
+set.seed(1)
+
+# read in data
+data("UKfaculty", package = "igraphdata")
+l <- layout_with_fr(UKfaculty)
+
+# create netplot graph
+nplot(UKfaculty, layout = l)
+```
+
+The focus of this paper is to provide a walkthrough using `netplot` across two different datasets (similar to the one that @butts_social_2008 created for `sna`. This will be useful, as `netplot` is a fairly new package, and users can use this paper to assist their visualization creation. Also, having two real-life data examples will be helpful for users to visualize the way the data needs to be formatted in order to run through the package. The goal of this paper is to introduce `netplot`, give users a walkthrough of two examples, and showcase some of the skills and advantages `netplot` can offer. 
+
+# Network visualization in a nutshell: Things to consider
+
+One of the important aspects of network visualization is the layout algorithm used to actually graph the networks. There are a number of popular graphing algorithms, and each of these have their own strengths and weaknesses. The “Circle” algorithm places clusters on a circle and creates straight lines between vertices [@six_framework_1999]. It works well for showing bi-connectivity and subnetworks, and the number of edges needs to be relatively low to effectively show connections [@six_framework_1999]. The DrL (Distributed Recursive Layout) employs a multilevel force algorithm that is based on simulated annealing, and it works well for large abstract datasets [@martin_drl_2007]. The Fruchterman-Reingold layout algorithm uses vertices and edges as atomic bodies with repulsive and attractive forces to minimize the energy of the system [@fruchtermanGraphDrawingForcedirected1991] [@hansen_chapter_2011], which benefits large social networks. The Kamada-Kawai layout uses a spring algorithm to layout undirected graphs in a symmetric drawing with a minimum number of edge crossings, which works well for network structures [@kamada_algorithm_1989]. The LGL (Large-Graph Layout) is based on a mass-spring algorithm, using edges as springs to pull vertices together while a repulsive force prevents overlapping, making it highly effective for dense biological networks [@adai_lgl_2004].
+
+Another aspect that must be considered is the graphing parameters. One aspect of graphing is vertex size, which can effectively convey varying weights and changes in information, as demonstrated by @zien_multilevel_1999 and the study of @sharma_accelerate_2022 where vertex size is determined by the number of outgoing edges. Additionally, vertex size can be employed to illustrate increases or decreases in data, such as counts, as observed by @knisley_seeing_2014. The color of vertices is equally significant, not only for enhancing visual appeal but also for aiding in the differentiation of objects or levels [@ognyanova_network_nodate]. Furthermore, vertex color can assist in visualizing groupings, patterns, or clusters [@tyner_network_2017]. Just like vertex color, the shape of vertices contributes to both aesthetic appeal and data distinction, and @grapov_imdev_2012 exemplify how a combination of vertex shape, size, and color can effectively differentiate different data points. Finally, the width of edges plays a vital role in displaying the strength of connections between vertices, allowing users to comprehend the varying degrees of connection intensity. @lin_quantifying_2018 provides an example where edge widths are proportional to other measured aspects in the study. By thoughtfully considering these diverse components and utilizing them skillfully, network visualization can become a powerful tool for users to better understand intricate relationships within their data.
+
+The type of data needs to be taken into consideration as well. Egocentric data encompasses diverse types of social network measurements, including degrees of mesh [@barnes_class_1954], level of knittedness [@bott_conjugal_2002], local or cosmopolitan orientation [@merton_social_1968], strength of ties [@granovetter_strength_1973], family or friend networks [@wellman_community_1979], and more. These measurements revolve around the social relationships surrounding a central individual's immediate context, offering insights into their social status and the flow of information, support, or resources [@marsden_advances_2023]. Examples of its applications range from health-related topics [@burgette_best_2021] and social behaviors [@carrasco2008collecting] to ecological data [@mascareno_twitter-lived_2020] and beyond. Additionally, network analysis involves small networks that exhibit high clustering and short characteristic path lengths, such as those found in medical aspects like brain networks [@bassett_small-world_2006], location aspects like electric power grids or airport connections [@amaral_classes_2000], and social connections [@newman_who_2001], among others. On the other end of the spectrum, large networks comprise billions of nodes and edges, capturing connections within a community and include examples like social media platforms, mobile phone networks, and website connections [@blondel_fast_2008]. Furthermore, bipartite networks, which model relationships between two distinct sets of entities, find applications in various fields, including microbiology topics [@corel_bipartite_2018], plant-animal mutualistic networks [@bascompte2007plant], and artistic collaboration networks [@uzzi_collaboration_2005], among others [@banerjee_properties_2017]. Understanding these different types of data and their applications provides valuable insights into the complexities of interconnected systems.
+
+# Start to finish examples
+
+In this section, we will present two full-length examples of network visualization. In both, we will start with raw data sets, walking through how to read and process the data and how to build a visualization step by step. Throughout the paper, we will use the **igraph** [@igraph] [@csadi2006igraph], **data.table** [@datatable], and **netplot** [@netplot] R packages. We start by loading those packages
+
+```{r}
+#| echo: true
+#| label: packages
+#| warning: false
+#| message: false
+library(igraph)
+library(data.table)
+library(netplot)
+```
+
+## *Example 1: School data*
+
+For the first example, we will use a data set from the paper titled "Estimates of Social Contact in a Middle School Based on Self-Report and Wireless Sensor Data" by Leecaster et al., which features the social networks of 7th and 8th-grade students. We have identifiers such as gender, lunch period, and grade, which we will use for building our visualization. 
+
+
+### Cleaning Data 
+
+First, the data needs to be pulled in. After we pull it in, let's glimpse what the data looks like.
+
+```{r}
+#| echo: true
+#| include: true
+#| label: reading
+#| warning: false
+#| message: false
+
+# loading and cleaning data
+students      <- fread("students.csv")
+interactions  <- fread("interactions.csv")
+
+head(students)
+head(interactions)
+```
+
+
+To use the data, we need to remove all of the 'N/A's and miscoding in the datasets.
+
+```{r}
+#| echo: true
+#| include: true
+#| label: filter
+#| warning: false
+#| message: false
+# Filter out 'N/A's in 'id' and 'contactId' 
+interactions <- interactions[
+  complete.cases(id, contactId)
+  ]
+                             
+# Keeping students with valid gender data
+students <- students[gender %in% c(0, 1)]
+```
+
+Also, we see a large number of students who only have interactions with themselves (they do not interact with anyone else throughout the day), so isolates need to be removed to make it easier to read. 
+
+```{r}
+#| echo: true
+#| include: true
+#| label: remove_isolates
+#| warning: false
+# Which connections are not OK?
+ids <- students[, sort(unique(id))]
+
+# narrowed our data from 10781 to 5150
+interactions  <- interactions[
+  (id %in% ids) & (contactId %in% ids)
+  ]
+```
+
+After, the two datasets need to be combined.
+
+```{r}
+#| echo: true
+#| include: true
+#| label: combine
+#| warning: false
+#| message: false
+#| error: true
+
+# Putting the columns id and contactId first in
+# the interactions
+setcolorder(interactions, c("id", "contactId"))
+
+# Creating an igraph object
+net <- graph_from_data_frame(
+  vertices = students,
+  d        = interactions,
+  directed = FALSE
+  )
+```
+
+We got our first error: `"Duplicated vertex names"`. There are a few ways in which we can inspect the duplicated vertex names. One we prefer is tagging the observations using a combination of the `.N` and `by` in `data.table`:
+
+```{r}
+#| echo: true
+#| label: duplicated
+students[, nreplicates := .N, by = "id"]
+students[nreplicates > 1, unique(id)]
+```
+
+In the list, we see that all duplicates seem to be records with NA in the student `id`. We can remove them and try again:
+
+```{r}
+#| echo: true
+#| label: duplicated2
+students <- students[!is.na(id)]
+students[, nreplicates := .N, by = "id"]
+students[nreplicates > 1, unique(id)]
+```
+
+We solved the issue, now, we can try to create the graph again:
+
+```{r}
+## Creating an igraph object
+net <- graph_from_data_frame(
+  vertices = students,
+  d        = interactions,
+  directed = FALSE
+  )
+
+# Inspecting the resulting graph
+print(net)
+```
+
+Success! We have a graph with 638 nodes and 5150 edges. The igraph object also features important information:
+
+- `UN--`: the graph is undirected (`U`) and its vertices have names (`N`).
+
+- `638 5150`: the graph has 638 nodes and 5150 edges
+
+- There are a handful of vertex and edge attributes, for example: `name (v/c)` (vertex/character), `gender (v/n)` (vertex/numeric), and `contactGrade (e/n)` (edge/numeric).
+
+- And it shows a handful of the first edges: `1] 2004--3127 2004--2620 2004--2141 2004--2362`...
+
+You can read more about the information displayed by typing `?print.igraph` on the console. With the graph finally created, we can start working on the visualization.
+
+## A first look
+
+Before we jump into drawing the network, a good practice is to pre-calculate and save the layout, as (a) it can be time-consuming and (b) will allow us to use the same layout for different visualizations. A good starting choice is using `igraph`'s `layout_nicely` function, which will pick a layout algorithm based on the size of the graph. 
+
+```{r}
+#| echo: true
+
+```
+
+```{r}
+#| error: true
+## Getting only connected individuals
+net_with_no_isolates  <- subgraph(
+  graph = net,
+  which(degree(net) > 0)
+  )
+```
+
+What just happened? The 
+
+
+Finally, we plot it, effectively showing this network graph. 
+```{r}
+#| echo: true
+#| include: true
+#| label: plot_school1
+#| warning: false
+#| message: false
+net_with_no_isolates  <- subgraph(
+  graph = net,
+  vids  = which(igraph::degree(net) > 0)
+  )
+
+## Plot with no isolates
+set.seed(3)
+nplot(
+  net_with_no_isolates
+) 
+```
+
+
+### Vertex Options 
+
+Here, we are taking the data set and the plot, letting us customize many aspects of the graph. This is the same data that we used to create the plot above, but now adjustments to the nodes will be made. 
+
+- Color the vertices ('vertex.color') according to the grade the student is in (with 7th graders being gray and 8th graders being red).
+
+- Adjust the shape of the vertices ('vertex.nsides'). If the student is a 7th grader, the vertices will be a circle, but if they are not, the vertices will be a triangle.
+
+- Adjust size of vertices ('vertex.size.range'). 
+
+- Remove the labels of the nodes. 
+
+```{r}
+#| echo: true
+#| include: true
+#| label: grade_vertices
+#| warning: false
+#| message: false
+
+set.seed(3)
+grades   <- nplot(
+  net_with_no_isolates,
+  vertex.color         = ~ grade,
+  vertex.nsides        = ifelse(
+    V(net_with_no_isolates)$grade == 7, 10, 3
+    ),
+  vertex.size.range    = c(0.015, 0.020),
+  vertex.label         = NULL)
+
+print(grades)
+```
+
+This looks good, but lets alternate these parameters we just gave to make things have a different look.
+
+- Change `vertex.colors` to be tied to a color palette. 
+
+- Adjust `vertex.nsides` to make 7th graders be an octagon and 8th graders be a hexagon. 
+
+- Adjust `vertex.size.range`, making each vertex smaller.
+
+- Add and adjust labels of vertices with functions `vertex.label.[specific_function]`
+  
+  - `vertex.label.fontsize` adjust the font size
+  
+  - `vertex.label.show` adjusts proportion of labels to keep. 
+
+- Adjust `vertex.frame.color` to give an outline of each vertex.
+
+```{r}
+#| echo: true
+#| include: true
+#| label: grade_vertices1
+#| warning: false
+#| message: false
+# Create a color palette using RColorBrewer
+# brewer.pal(3, "Set1")
+palette(c("#E41A1C", "#377EB8", "#4DAF4A"))
+
+set.seed(3)
+nplot(
+  net_with_no_isolates,
+  vertex.color           = ~ grade,
+  vertex.nsides          = ifelse(
+    V(net_with_no_isolates)$grade == 7, 8, 6
+    ),
+  vertex.size.range      = c(0.01, 0.011),
+  vertex.label.fontsize  = 10,
+  vertex.label.show      = .25,
+  vertex.frame.color     = "black"
+  )
+```
+
+### Edge Options
+Now that we have explored a bit about vertices, let's dive into options related to edges. 
+
+- Change `edge.width.range` to make the size of the edges wider or thinner. 
+
+- Change `edge.color` to blue.
+
+- Change `edge.color.alpha` to adjust transparency. 
+```{r}
+#| echo: true
+#| include: true
+#| label: grade_edges1
+#| warning: false
+#| message: false
+
+set.seed(3)
+nplot(
+  net_with_no_isolates,
+  vertex.label     = NULL,
+  edge.width.range = c(.25,1),
+  edge.color       = "dodgerblue4",
+  edge.color.alpha = .33
+  )
+```
+
+Now, let's adjust everything again, showing some of the things that `netplot` can do with edges.
+
+- Adjust `edge.color` so that edges correspond to vertices on a gradient.
+
+- Adjust `edge.curvature` to make edges a straight line. 
+
+- Adjust `edge.line.lty` to make edges long dashes.
+
+```{r}
+#| echo: true
+#| include: true
+#| label: grade_edges2
+#| warning: false
+#| message: false
+
+palette(c("blue", "red3"))
+
+set.seed(3)
+grades <- nplot(
+  net_with_no_isolates,
+  vertex.label     = NULL,
+  edge.width.range = c(1,1),
+  vertex.color     = ~ grade,
+  edge.color       = ~
+    ego(alpha = 0.5) + alter(alpha = 0.5),
+  edge.curvature   = 0,
+  edge.line.lty    = 5
+  )
+  
+  
+print(grades)
+```
+
+### Other Options
+
+Using the same plot that we originally created, we can also adjust some of the aspects outside of vertices and edges. 
+
+- Adjust `bg.col` to make background color slate gray.
+
+- Adjust `sample.edges` to select a proportion of the edges. 
+
+```{r}
+#| echo: true
+#| include: true
+#| label: plot_other1
+#| warning: false
+#| message: false
+
+## Plot with no isolates
+set.seed(3)
+nplot(
+  net_with_no_isolates,
+  vertex.label=NULL,
+  bg.col = "slategray1",
+  sample.edges = .5) 
+```
+
+We can adjust things to get a different outcome. 
+
+- Adjust `skip.edges` to remove edges altogether. 
+
+- Adjust `bg.col` to misty rose.
+
+- Adjust `zero.margins` to true.
+
+```{r}
+#| echo: true
+#| include: true
+#| label: plot_other2
+#| warning: false
+#| message: false
+
+## Plot with no isolates
+set.seed(3)
+nplot(
+  net_with_no_isolates,
+  vertex.label = NULL,
+  skip.edges   = TRUE,
+  bg.col       = "mistyrose",
+  zero.margins = TRUE
+  ) 
+```
+
+### Conclusion
+
+The middle school data set provides a basis where we can see what `netplot` can do. There are options to adjust the vertices, edges, and even other parameters. 
+
+## *Example 2: Healthcare data*
+
+This data set comes from "Assessing Pathogen Transmission Opportunities: Variation in Nursing Home Staff-Resident Interactions" by Chang et. al. It explores connections in a number of nursing homes across 7 states between patients and healthcare providers. There are 99 networks in the data set.
+
+With this data, we will explore how multiple smaller networks can work together to tell a story and can be plotted using `netplot`. 
+
+### Cleaning Data 
+
+First, the data needs to be loaded in, with the requisite packages we will be using. 
+
+```{r}
+#| echo: true
+#| include: true
+#| label: packages2
+#| warning: false
+#| message: false
+
+# attaching packages
+library(network)
+
+data <- load("./data/nursing_home/network99_f1.RData")  
+```
+
+### First Plot
+
+Following, we are now ready to plot the data, as it is already in the correct, cleaned format. First, let's pull the first and the second networks alone so we can have a closer look at them. 
+
+```{r}
+#| echo: true
+#| include: true
+#| label: for_loop_1-2
+#| warning: false
+#| message: false
+#| cache: true
+
+# Creates an empty list to store the networks
+nets <- list()
+
+# Sets a seed for reproducibility
+set.seed(1231)
+
+palette(c("gray40", "red3"))
+
+for (i in 1:2) {  # Change the loop range to 1:2
+  # Checks if the vertex "is_actor" exists in the network
+  is_health_care_provider <- networks[[i]] %v% "is_actor"
+  nets[[i]] <- nplot(
+    networks[[i]],
+    # Colors the vertices gray if HCP exists, red otherwise
+    vertex.color      = ~ is_actor,
+    # Makes vertices square if HCP exists, round otherwise
+    vertex.nsides     = ifelse(
+      is_health_care_provider, 4, 10
+      ),
+    # Makes HCP vertices larger than patient vertices
+    vertex.size       = ifelse(
+      is_health_care_provider, .25, .15
+      ),
+    vertex.size.range = c(.015, .065),
+    edge.width.range  = c(.25, .5),
+    # Sets edge line breaks to 1 and colors edges black
+    edge.line.breaks  = 1,
+    edge.color        = ~
+      ego(alpha = 1, col = "lightgray") +
+      alter(alpha = 1, col = "lightgray")
+      ,
+    edge.curvature    = pi / 6,
+    # Removes vertex labels
+    vertex.label      = NULL
+  )
+}
+
+# Combines the 2 plots into a 1x2 grid
+allgraphs <- gridExtra::grid.arrange(
+  grobs = nets, nrow = 1, ncol = 2
+  )
+```
+
+Here, the healthcare provider is represented by gray diamonds, while the patients are represented by red circles. 
+
+### Second Plot
+
+Much like the previous example, we can use the different aspects of `netplot` to adjust how the graph looks. 
+
+- Adjust `vertex.color` so providers are purple instead of gray and patients are pink instead of red.
+
+- Adjust `vertex.nsides` so providers are triangles and patients are hexagons. 
+
+- Adjust `edge.line.breaks`to make the edges curved instead of straight. 
+
+- Adjust `edge.color` so edges are now black instead of gray.
+  
+  - Adjust `alpha` so the black is slightly transparent. 
+
+- Adjust `edge.curvature` to make the edges more curved. 
+
+```{r}
+#| echo: true
+#| include: true
+#| label: for_loop_1-2_example
+#| warning: false
+#| message: false
+#| cache: true
+
+# Creates an empty list to store the networks
+nets <- list()
+
+# Sets a seed for reproducibility
+set.seed(1231)
+
+palette(c("purple", "pink"))
+
+for (i in 1:2) {  # Change the loop range to 1:2
+  # Checks if the vertex "is_actor" exists in the network
+  is_health_care_provider <- networks[[i]] %v% "is_actor"
+  nets[[i]] <- nplot(
+    networks[[i]],
+    # Colors the vertices gray if HCP exists, red otherwise
+    vertex.color = ~ is_actor,
+    # Makes vertices square if HCP exists, round otherwise
+    vertex.nsides = ifelse(is_health_care_provider == TRUE, 3, 6),
+    # Makes HCP vertices larger than patient vertices
+    vertex.size   = ifelse(is_health_care_provider == TRUE, .25, .15),
+    vertex.size.range = c(.015, .065),
+    edge.width.range = c(.25, .5),
+    # Sets edge line breaks to 1 and colors edges black
+    edge.line.breaks = 6,
+    edge.color = ~ego(alpha = .8, col = "black") + alter(alpha = .8, col = "black"),
+    edge.curvature = pi / 3,
+    # Removes vertex labels
+    vertex.label = NULL
+  )
+}
+
+# Combines the 2 plots into a 1x2 grid
+allgraphs <- gridExtra::grid.arrange(grobs = nets, nrow = 1, ncol = 2)
+
+```
+
+### 99 Plots
+
+Now that we understand what these networks look like at a closer level, we can plot them all for comparison. 
+
+```{r}
+#| echo: true
+#| include: true
+#| label: for_loop_1-99
+#| warning: false
+#| message: false
+#| cache: true
+
+# Creates an empty list to store the networks
+nets <- list()  
+
+# Sets a seed for reproducibility 
+set.seed(1231)  
+
+palette(c("gray40", "red3"))
+
+for (i in 1:99) { 
+
+  # Checks if the vertex "is_actor" exists in the network
+  is_health_care_provider <- networks[[i]] %v% "is_actor"  
+
+  nets[[i]] <- nplot(
+    networks[[i]], 
+    # Colors the vertices gray if HCP exists, red otherwise
+    vertex.color     = ~ is_actor,  
+    # Makes vertices square if HCP exists, round otherwise
+    vertex.nsides    = ifelse(
+      is_health_care_provider == TRUE, 4, 10
+      ),
+    # Makes HCP vertices larger than patient vertices
+    vertex.size      = ifelse(
+      is_health_care_provider == TRUE, .25, .15
+      ),
+    vertex.size.range = c(.015,.065),
+    edge.width.range  = c(.25,.5),
+    # Sets edge line breaks to 1 and colors edges black  
+    edge.line.breaks  = 1,
+    edge.color = ~
+      ego(alpha = 1, col = "lightgray") +
+      alter(alpha = 1, col = "lightgray"),
+    edge.curvature    = pi/6,
+    # Removes vertex labels
+    vertex.label      = NULL
+    )
+
+}
+
+# Combines the 99 plots into an 11x9 grid
+allgraphs <- gridExtra::grid.arrange(grobs = nets, nrow=11, ncol=9) 
+```
+
+### Conclusion
+
+As made evident, `netplot` can be used in a "For-Loop", creating a large number of graphs with large amounts of data in a very quick manner. Having these graphs side-by-side allows for quick and easy analysis of the similarities and differences. 
+
+# Conclusion 
+
+`netplot` is a powerful network visualization package in R that gives the user ultimate control over how the visualizations work. In this paper, we go through two example datasets, using `netplot` to plot the networks. These plots effectively show some of the strengths of `netplot`, including the auto-scaling of vertices, edge color mixer, curve edge drawings, user-defined edge curvature, nicer vertex frame color, and better use of space-filling the plotting device. 

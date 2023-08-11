@@ -1,0 +1,9 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+<<<<<<< HEAD
+=======
+*_cache
+*_files
+>>>>>>> 981055b018a6ad588ba158bed798db784ffb4643
